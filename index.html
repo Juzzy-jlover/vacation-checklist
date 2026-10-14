@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PackWise - Interactive Vacation Packing Checklist</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        teal: { 50: '#f0fdf4', 500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 950: '#042f2e' }
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+    </style>
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+
+    <div id="app" class="min-h-full flex flex-col pb-16">
+        <!-- Top Gradient Header -->
+        <header class="bg-gradient-to-r from-teal-600 via-cyan-600 to-sky-600 dark:from-teal-900 dark:via-cyan-900 dark:to-slate-900 text-white shadow-lg">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-start sm:items-center gap-3.5">
+                        <div class="p-3 bg-white/15 backdrop-blur-md rounded-2xl shadow-inner border border-white/25">
+                            <i data-lucide="luggage" class="w-7 h-7 text-white"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-teal-100">
+                                <i data-lucide="plane" class="w-3.5 h-3.5"></i>
+                                <span>PackWise Interactive Organizer</span>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="trip-title-input" 
+                                value="Tropical Island Escape 🌴" 
+                                aria-label="Trip Title"
+                                oninput="updateTripTitle(this.value)"
+                                class="mt-0.5 text-xl sm:text-2xl font-bold bg-transparent border-b border-transparent hover:border-white/40 focus:border-white focus:outline-none text-white placeholder-teal-100/70 transition-colors w-full sm:w-auto"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 self-end sm:self-auto">
+                        <button 
+                            onclick="exportChecklist()" 
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-medium backdrop-blur-sm transition border border-white/15"
+                            title="Export & Copy summary"
+                        >
+                            <i data-lucide="copy" class="w-4 h-4"></i>
+                            <span>Export List</span>
+                        </button>
+                        <button 
+                            onclick="toggleDarkMode()" 
+                            class="p-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white backdrop-blur-sm transition border border-white/15"
+                            aria-label="Toggle Theme"
+                            title="Toggle Dark/Light Mode"
+                        >
+                            <i id="theme-icon" data-lucide="moon" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="sticky top-0 z-20 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 shadow-sm">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-2.5">
+                    <div>
+                        <div class="flex items-center gap-2.5">
+                            <span id="progress-percent-text" class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-600 to-sky-600 dark:from-teal-400 dark:to-sky-400 bg-clip-text text-transparent">
+                                0% Packed
+                            </span>
+                            <span id="ready-badge" class="hidden items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Ready to Go!
+                            </span>
+                        </div>
+                        <p id="motivation-text" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+                            Ready to start packing! Grab your suitcase and check off your first item.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                        <div class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+                            <span class="text-slate-500 dark:text-slate-400">Items:</span>
+                            <span id="stat-items-count" class="font-bold text-slate-800 dark:text-slate-200">0 / 0</span>
+                        </div>
+                        <div class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <span class="text-slate-500 dark:text-slate-400">Essentials:</span>
+                            <span id="stat-essentials-count" class="font-bold text-slate-800 dark:text-slate-200">0 / 0</span>
+                        </div>
+                        <div class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hidden sm:flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+                            <span class="text-slate-500 dark:text-slate-400">Total Qty:</span>
+                            <span id="stat-qty-count" class="font-bold text-slate-800 dark:text-slate-200">0 / 0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-full h-3.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner p-0.5">
+                    <div id="progress-bar-fill" class="h-full rounded-full bg-gradient-to-r from-teal-500 via-cyan-500 to-sky-500 transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <main class="max-w-6xl mx-auto px-4 sm:px-6 mt-6 space-y-6 flex-1 w-full">
+            <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <form onsubmit="handleAddNewItem(event)" class="flex-1">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                            Add Custom Item to Checklist
+                        </label>
+                        <div class="flex flex-col sm:flex-row gap-2.5">
+                            <input 
+                                type="text" 
+                                id="new-item-name" 
+                                placeholder="e.g., Polarized Sunglasses, Hiking Boots..." 
+                                class="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 dark:text-white"
+                                required
+                            />
+                            <div class="flex gap-2">
+                                <select id="new-item-category" aria-label="Select Category" class="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 dark:text-white">
+                                    <option value="Essentials">Essentials & Docs</option>
+                                    <option value="Clothing">Clothing & Footwear</option>
+                                    <option value="Toiletries">Toiletries & Health</option>
+                                    <option value="Electronics">Electronics & Gear</option>
+                                    <option value="Miscellaneous">Miscellaneous</option>
+                                </select>
+                                <div class="flex items-center bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl px-2">
+                                    <span class="text-xs text-slate-400 mr-1">Qty</span>
+                                    <input type="number" id="new-item-qty" min="1" max="99" value="1" aria-label="Item Quantity" class="w-12 py-2 bg-transparent text-center text-sm font-semibold focus:outline-none dark:text-white" />
+                                </div>
+                                <button 
+                                    type="button" 
+                                    id="new-item-essential-btn"
+                                    onclick="toggleNewItemEssential()"
+                                    class="px-3 py-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1 bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400"
+                                    title="Mark as Must-Have Essential"
+                                >
+                                    <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                    <span class="hidden md:inline">Essential</span>
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white font-semibold text-sm shadow-sm transition flex items-center gap-1.5 shrink-0"
+                                >
+                                    <i data-lucide="plus" class="w-4 h-4"></i>
+                                    <span>Add</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5">
+                        <span class="block text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                            Quick-Add Trip Pack
+                        </span>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="addPreset('beach')" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-teal-50 dark:bg-slate-800 dark:hover:bg-teal-950/50 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 border border-slate-200/80 dark:border-slate-700 transition">
+                                <i data-lucide="palmtree" class="w-3.5 h-3.5 text-teal-600 dark:text-teal-400"></i>
+                                <span>+ Beach Getaway</span>
+                            </button>
+                            <button onclick="addPreset('winter')" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-teal-50 dark:bg-slate-800 dark:hover:bg-teal-950/50 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 border border-slate-200/80 dark:border-slate-700 transition">
+                                <i data-lucide="mountain" class="w-3.5 h-3.5 text-teal-600 dark:text-teal-400"></i>
+                                <span>+ Winter / Mountain</span>
+                            </button>
+                            <button onclick="addPreset('business')" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-teal-50 dark:bg-slate-800 dark:hover:bg-teal-950/50 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 border border-slate-200/80 dark:border-slate-700 transition">
+                                <i data-lucide="briefcase" class="w-3.5 h-3.5 text-teal-600 dark:text-teal-400"></i>
+                                <span>+ Business Trip</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl self-start">
+                    <button onclick="setStatusFilter('all')" id="filter-tab-all" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-sm">
+                        <span>All Items</span>
+                        <span id="count-badge-all" class="px-1.5 py-0.2 rounded-full text-[11px] bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300">0</span>
+                    </button>
+                    <button onclick="setStatusFilter('unpacked')" id="filter-tab-unpacked" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                        <span>To Pack</span>
+                        <span id="count-badge-unpacked" class="px-1.5 py-0.2 rounded-full text-[11px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">0</span>
+                    </button>
+                    <button onclick="setStatusFilter('packed')" id="filter-tab-packed" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                        <span>Packed</span>
+                        <span id="count-badge-packed" class="px-1.5 py-0.2 rounded-full text-[11px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">0</span>
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative flex-1 sm:flex-initial sm:w-56">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        <input 
+                            type="text" 
+                            id="search-input" 
+                            oninput="setSearchQuery(this.value)" 
+                            placeholder="Search items..." 
+                            class="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                    </div>
+                    <button onclick="confirmUncheckAll()" id="clear-checks-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 transition">
+                        <i data-lucide="check-square" class="w-4 h-4"></i>
+                        <span>Clear Checks</span>
+                    </button>
+                    <button onclick="confirmResetDefault()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        <span>Reset Default</span>
+                    </button>
+                </div>
+            </section>
+
+            <div id="category-pills" class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar"></div>
+
+            <div id="categories-container" class="grid grid-cols-1 lg:grid-cols-2 gap-5"></div>
+        </main>
+
+        <div id="custom-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 hidden">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl">
+                <h3 id="modal-title" class="text-lg font-bold text-slate-900 dark:text-white"></h3>
+                <p id="modal-message" class="text-sm text-slate-600 dark:text-slate-400 mt-2"></p>
+                <div class="flex items-center justify-end gap-2.5 mt-6">
+                    <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition">Cancel</button>
+                    <button id="modal-confirm-btn" class="px-4 py-2 rounded-xl text-sm font-semibold text-white transition">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast" class="fixed bottom-5 right-5 z-40 flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl shadow-lg text-xs sm:text-sm font-medium border border-slate-700 dark:border-slate-200 transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">
+            <i data-lucide="check" class="w-4 h-4 text-teal-400 dark:text-teal-600 shrink-0"></i>
+            <span id="toast-message"></span>
+        </div>
+    </div>
+
+    <script>
+        const CATEGORIES = [
+            { id: 'Essentials', name: 'Essentials & Docs', icon: 'shield-check', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-950/40', border: 'border-rose-200 dark:border-rose-800/50', bar: 'bg-rose-500' },
+            { id: 'Clothing', name: 'Clothing & Footwear', icon: 'shirt', color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-50 dark:bg-sky-950/40', border: 'border-sky-200 dark:border-sky-800/50', bar: 'bg-sky-500' },
+            { id: 'Toiletries', name: 'Toiletries & Health', icon: 'droplets', color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50 dark:bg-teal-950/40', border: 'border-teal-200 dark:border-teal-800/50', bar: 'bg-teal-500' },
+            { id: 'Electronics', name: 'Electronics & Gear', icon: 'laptop', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-950/40', border: 'border-indigo-200 dark:border-indigo-800/50', bar: 'bg-indigo-500' },
+            { id: 'Miscellaneous', name: 'Miscellaneous', icon: 'package', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border-amber-200 dark:border-amber-800/50', bar: 'bg-amber-500' }
+        ];
+
+        const DEFAULT_ITEMS = [
+            { id: '1', name: 'Passport / Government ID', category: 'Essentials', quantity: 1, packed: true, essential: true },
+            { id: '2', name: 'Boarding Passes & Tickets', category: 'Essentials', quantity: 1, packed: true, essential: true },
+            { id: '3', name: 'Wallet (Cash & Credit Cards)', category: 'Essentials', quantity: 1, packed: false, essential: true },
+            { id: '4', name: 'House & Car Keys', category: 'Essentials', quantity: 1, packed: false, essential: true },
+            { id: '5', name: 'Travel Insurance Info', category: 'Essentials', quantity: 1, packed: false, essential: false },
+            { id: '6', name: 'Prescription Medications', category: 'Essentials', quantity: 1, packed: false, essential: true },
+            { id: '7', name: 'T-Shirts / Casual Tops', category: 'Clothing', quantity: 5, packed: true, essential: false },
+            { id: '8', name: 'Underwear', category: 'Clothing', quantity: 7, packed: true, essential: false },
+            { id: '9', name: 'Socks', category: 'Clothing', quantity: 7, packed: false, essential: false },
+            { id: '10', name: 'Pants / Jeans / Shorts', category: 'Clothing', quantity: 3, packed: false, essential: false },
+            { id: '11', name: 'Light Jacket / Sweater', category: 'Clothing', quantity: 1, packed: false, essential: false },
+            { id: '12', name: 'Sleepwear / Pajamas', category: 'Clothing', quantity: 2, packed: false, essential: false },
+            { id: '13', name: 'Comfortable Walking Shoes', category: 'Clothing', quantity: 1, packed: false, essential: false },
+            { id: '14', name: 'Toothbrush & Toothpaste', category: 'Toiletries', quantity: 1, packed: true, essential: true },
+            { id: '15', name: 'Deodorant', category: 'Toiletries', quantity: 1, packed: false, essential: false },
+            { id: '16', name: 'Sunscreen (SPF 30+)', category: 'Toiletries', quantity: 1, packed: false, essential: false },
+            { id: '17', name: 'Shampoo & Conditioner (Travel)', category: 'Toiletries', quantity: 1, packed: false, essential: false },
+            { id: '18', name: 'First Aid Kit (Band-Aids, Pain Reliever)', category: 'Toiletries', quantity: 1, packed: false, essential: false },
+            { id: '19', name: 'Lip Balm', category: 'Toiletries', quantity: 1, packed: false, essential: false },
+            { id: '20', name: 'Smartphone & Charging Cable', category: 'Electronics', quantity: 1, packed: false, essential: true },
+            { id: '21', name: 'Portable Power Bank', category: 'Electronics', quantity: 1, packed: true, essential: false },
+            { id: '22', name: 'Noise-Canceling Headphones', category: 'Electronics', quantity: 1, packed: false, essential: false },
+            { id: '23', name: 'Universal Travel Adapter', category: 'Electronics', quantity: 1, packed: false, essential: false },
+            { id: '24', name: 'Reusable Water Bottle', category: 'Miscellaneous', quantity: 1, packed: false, essential: false },
+            { id: '25', name: 'Sunglasses', category: 'Miscellaneous', quantity: 1, packed: true, essential: false },
+            { id: '26', name: 'Daypack / Foldable Tote Bag', category: 'Miscellaneous', quantity: 1, packed: false, essential: false },
+            { id: '27', name: 'Travel Pillow & Eye Mask', category: 'Miscellaneous', quantity: 1, packed: false, essential: false }
+        ];
+
+        const TRIP_PRESETS = {
+            beach: {
+                label: 'Beach Getaway',
+                items: [
+                    { name: 'Swimsuits / Trunks', category: 'Clothing', quantity: 2, essential: false },
+                    { name: 'Flip-Flops / Sandals', category: 'Clothing', quantity: 1, essential: false },
+                    { name: 'Beach Towel', category: 'Miscellaneous', quantity: 1, essential: false },
+                    { name: 'After-Sun Aloe Vera Gel', category: 'Toiletries', quantity: 1, essential: false },
+                    { name: 'Waterproof Phone Pouch', category: 'Electronics', quantity: 1, essential: false }
+                ]
+            },
+            winter: {
+                label: 'Winter / Mountain',
+                items: [
+                    { name: 'Thermal Base Layers', category: 'Clothing', quantity: 2, essential: false },
+                    { name: 'Heavy Winter Coat', category: 'Clothing', quantity: 1, essential: true },
+                    { name: 'Beanie, Gloves & Scarf', category: 'Clothing', quantity: 1, essential: false },
+                    { name: 'Hand Warmers', category: 'Miscellaneous', quantity: 4, essential: false },
+                    { name: 'Rich Moisturizing Cream', category: 'Toiletries', quantity: 1, essential: false }
+                ]
+            },
+            business: {
+                label: 'Business Trip',
+                items: [
+                    { name: 'Laptop & Charger', category: 'Electronics', quantity: 1, essential: true },
+                    { name: 'Formal Dress Shirts / Blouses', category: 'Clothing', quantity: 3, essential: false },
+                    { name: 'Suit / Blazer & Dress Pants', category: 'Clothing', quantity: 1, essential: false },
+                    { name: 'Dress Shoes & Belt', category: 'Clothing', quantity: 1, essential: false },
+                    { name: 'Business Cards & Notebook', category: 'Essentials', quantity: 1, essential: false }
+                ]
+            }
+        };
+
+        let state = {
+            items: JSON.parse(localStorage.getItem('packwise_html_items_v1')) || DEFAULT_ITEMS,
+            tripTitle: localStorage.getItem('packwise_html_title') || 'Tropical Island Escape 🌴',
+            darkMode: localStorage.getItem('packwise_html_dark') === 'true',
+            statusFilter: 'all',
+            categoryFilter: 'All',
+            searchQuery: '',
+            newItemEssential: false
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (state.darkMode) {
+                document.documentElement.classList.add('dark');
+                updateThemeIcon();
+            }
+            document.getElementById('trip-title-input').value = state.tripTitle;
+            render();
+        });
+
+        function saveState() {
+            localStorage.setItem('packwise_html_items_v1', JSON.stringify(state.items));
+            localStorage.setItem('packwise_html_title', state.tripTitle);
+            localStorage.setItem('packwise_html_dark', state.darkMode);
+        }
+
+        function render() {
+            renderStatsAndProgress();
+            renderFilters();
+            renderCategories();
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        function renderStatsAndProgress() {
+            const total = state.items.length;
+            const packed = state.items.filter(i => i.packed).length;
+            const unpacked = total - packed;
+            const percentage = total === 0 ? 0 : Math.round((packed / total) * 100);
+
+            const totalPieces = state.items.reduce((acc, i) => acc + i.quantity, 0);
+            const packedPieces = state.items.filter(i => i.packed).reduce((acc, i) => acc + i.quantity, 0);
+
+            const essentialsTotal = state.items.filter(i => i.essential).length;
+            const essentialsPacked = state.items.filter(i => i.essential && i.packed).length;
+
+            document.getElementById('progress-percent-text').innerText = `${percentage}% Packed`;
+            document.getElementById('progress-bar-fill').style.width = `${percentage}%`;
+            
+            const readyBadge = document.getElementById('ready-badge');
+            if (percentage === 100 && total > 0) {
+                readyBadge.classList.remove('hidden');
+                readyBadge.classList.add('inline-flex');
+            } else {
+                readyBadge.classList.add('hidden');
+                readyBadge.classList.remove('inline-flex');
+            }
+
+            document.getElementById('motivation-text').innerText = getMotivation(percentage, total);
+
+            document.getElementById('stat-items-count').innerText = `${packed} / ${total}`;
+            document.getElementById('stat-essentials-count').innerText = `${essentialsPacked} / ${essentialsTotal}`;
+            document.getElementById('stat-qty-count').innerText = `${packedPieces} / ${totalPieces}`;
+
+            document.getElementById('count-badge-all').innerText = total;
+            document.getElementById('count-badge-unpacked').innerText = unpacked;
+            document.getElementById('count-badge-packed').innerText = packed;
+        }
+
+        function getMotivation(pct, total) {
+            if (total === 0) return 'Add items below to start organizing your trip!';
+            if (pct === 0) return 'Ready to start packing! Grab your suitcase and check off your first item.';
+            if (pct < 35) return 'Great start! Focus on your essential travel documents first.';
+            if (pct < 75) return 'Making steady progress! Over halfway to a stress-free departure.';
+            if (pct < 100) return 'Almost there! Just a few last-minute items remaining.';
+            return 'All packed and ready for takeoff! Have an unforgettable trip! 🎉';
+        }
+
+        function setStatusFilter(filter) {
+            state.statusFilter = filter;
+            ['all', 'unpacked', 'packed'].forEach(f => {
+                const btn = document.getElementById(`filter-tab-${f}`);
+                if (f === filter) {
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-sm";
+                    btn.querySelector('span:last-child').className = "px-1.5 py-0.2 rounded-full text-[11px] bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
+                    btn.querySelector('span:last-child').className = "px-1.5 py-0.2 rounded-full text-[11px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300";
+                }
+            });
+            renderCategories();
+        }
+
+        function setCategoryFilter(cat) {
+            state.categoryFilter = cat;
+            renderFilters();
+            renderCategories();
+        }
+
+        function setSearchQuery(val) {
+            state.searchQuery = val.trim().toLowerCase();
+            renderCategories();
+        }
+
+        function renderFilters() {
+            const container = document.getElementById('category-pills');
+            let html = `
+                <button onclick="setCategoryFilter('All')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold shrink-0 transition border ${state.categoryFilter === 'All' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300'}">
+                    All Categories
+                </button>
+            `;
+            CATEGORIES.forEach(cat => {
+                const count = state.items.filter(i => i.category === cat.id).length;
+                const active = state.categoryFilter === cat.id;
+                html += `
+                    <button onclick="setCategoryFilter('${cat.id}')" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold shrink-0 transition border ${active ? 'bg-teal-600 text-white border-transparent shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300'}">
+                        <i data-lucide="${cat.icon}" class="w-3.5 h-3.5"></i>
+                        <span>${cat.name}</span>
+                        <span class="opacity-75">(${count})</span>
+                    </button>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderCategories() {
+            const container = document.getElementById('categories-container');
+            const filteredCategories = CATEGORIES.filter(cat => state.categoryFilter === 'All' || state.categoryFilter === cat.id);
+
+            let html = '';
+            let hasVisibleItems = false;
+
+            filteredCategories.forEach(cat => {
+                const catItems = state.items.filter(item => {
+                    const matchesCategory = item.category === cat.id;
+                    const matchesStatus = state.statusFilter === 'all' ? true : state.statusFilter === 'packed' ? item.packed : !item.packed;
+                    const matchesSearch = item.name.toLowerCase().includes(state.searchQuery);
+                    return matchesCategory && matchesStatus && matchesSearch;
+                });
+
+                const totalCatItems = state.items.filter(i => i.category === cat.id);
+                const packedCatItems = totalCatItems.filter(i => i.packed).length;
+                const catPct = totalCatItems.length === 0 ? 0 : Math.round((packedCatItems / totalCatItems.length) * 100);
+                const allPacked = totalCatItems.length > 0 && packedCatItems === totalCatItems.length;
+
+                if (catItems.length > 0 || state.statusFilter === 'all') {
+                    hasVisibleItems = true;
+                }
+
+                html += `
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 dark:border-slate-800/80 ${cat.bg}">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="p-2 rounded-xl bg-white dark:bg-slate-900 shadow-xs border ${cat.border}">
+                                        <i data-lucide="${cat.icon}" class="w-5 h-5 ${cat.color}"></i>
+                                    </div>
+                                    <div>
+                                        <h2 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                                            <span>${cat.name}</span>
+                                            ${allPacked ? '<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Done</span>' : ''}
+                                        </h2>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400">${packedCatItems} of ${totalCatItems.length} packed (${catPct}%)</p>
+                                    </div>
+                                </div>
+                                ${totalCatItems.length > 0 ? `
+                                    <button onclick="toggleCategoryPacked('${cat.id}', ${!allPacked})" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-white/80 hover:bg-white dark:bg-slate-900/80 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 transition">
+                                        ${allPacked ? 'Unpack All' : 'Pack All'}
+                                    </button>
+                                ` : ''}
+                            </div>
+                            <div class="w-full h-1.5 bg-white/70 dark:bg-slate-800 rounded-full overflow-hidden mt-3">
+                                <div class="h-full transition-all duration-300 ${cat.bar}" style="width: ${catPct}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="divide-y divide-slate-100 dark:divide-slate-800/60 flex-1">
+                            ${catItems.length === 0 ? `
+                                <div class="p-6 text-center text-xs text-slate-400 dark:text-slate-500">
+                                    No items found in this view.
+                                </div>
+                            ` : catItems.map(item => `
+                                <div class="group flex items-center justify-between gap-2 px-4 py-3 transition ${item.packed ? 'bg-slate-50/60 dark:bg-slate-900/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}">
+                                    <button onclick="toggleItemPacked('${item.id}')" class="flex items-center gap-3 text-left flex-1 min-w-0 focus:outline-none">
+                                        ${item.packed ? '<i data-lucide="check-circle-2" class="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0"></i>' : '<i data-lucide="circle" class="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-teal-500 shrink-0"></i>'}
+                                        <span class="text-sm font-medium block truncate transition ${item.packed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200'}">
+                                            ${escapeHtml(item.name)}
+                                        </span>
+                                    </button>
+                                    
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        <button onclick="toggleItemEssential('${item.id}')" title="${item.essential ? 'Essential item' : 'Mark as Essential'}" class="px-2 py-0.5 rounded-md text-[11px] font-semibold transition ${item.essential ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60' : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}">
+                                            ${item.essential ? 'Essential' : '+ Essential'}
+                                        </button>
+                                        <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200/70 dark:border-slate-700">
+                                            <button onclick="updateQuantity('${item.id}', -1)" class="w-5 h-5 flex items-center justify-center text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white rounded">-</button>
+                                            <span class="px-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">${item.quantity}</span>
+                                            <button onclick="updateQuantity('${item.id}', 1)" class="w-5 h-5 flex items-center justify-center text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white rounded">+</button>
+                                        </div>
+                                        <button onclick="deleteItem('${item.id}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition" title="Delete item">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <form onsubmit="handleQuickAdd(event, '${cat.id}')" class="p-2.5 bg-slate-50/70 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-2">
+                            <input type="text" id="quick-add-${cat.id}" placeholder="Quick add to ${cat.name}..." class="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 dark:text-white" />
+                            <button type="submit" class="px-2.5 py-1.5 rounded-lg bg-slate-200/80 hover:bg-teal-600 hover:text-white dark:bg-slate-800 dark:hover:bg-teal-600 text-slate-700 dark:text-slate-300 text-xs font-semibold transition flex items-center gap-1">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                <span>Add</span>
+                            </button>
+                        </form>
+                    </div>
+                `;
+            });
+
+            if (!hasVisibleItems) {
+                html = `
+                    <div class="col-span-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-sm">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                            <i data-lucide="luggage" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">No matching items found</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">Try switching your status filter or clearing your search query.</p>
+                        <button onclick="resetFilters()" class="mt-4 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition">Show All Items</button>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function handleAddNewItem(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('new-item-name');
+            const categoryInput = document.getElementById('new-item-category');
+            const qtyInput = document.getElementById('new-item-qty');
+
+            const name = nameInput.value.trim();
+            if (!name) return;
+
+            const newItem = {
+                id: 'item_' + Date.now() + Math.random().toString(36).substr(2, 4),
+                name: name,
+                category: categoryInput.value,
+                quantity: Math.max(1, parseInt(qtyInput.value) || 1),
+                packed: false,
+                essential: state.newItemEssential
+            };
+
+            state.items.unshift(newItem);
+            saveState();
+            render();
+
+            nameInput.value = '';
+            qtyInput.value = '1';
+            state.newItemEssential = false;
+            updateNewItemEssentialButton();
+            showToast(`Added "${name}"`);
+        }
+
+        function handleQuickAdd(e, categoryId) {
+            e.preventDefault();
+            const input = document.getElementById(`quick-add-${categoryId}`);
+            const name = input.value.trim();
+            if (!name) return;
+
+            const newItem = {
+                id: 'item_' + Date.now() + Math.random().toString(36).substr(2, 4),
+                name: name,
+                category: categoryId,
+                quantity: 1,
+                packed: false,
+                essential: false
+            };
+
+            state.items.push(newItem);
+            saveState();
+            render();
+            showToast(`Added "${name}" to ${categoryId}`);
+        }
+
+        function toggleNewItemEssential() {
+            state.newItemEssential = !state.newItemEssential;
+            updateNewItemEssentialButton();
+        }
+
+        function updateNewItemEssentialButton() {
+            const btn = document.getElementById('new-item-essential-btn');
+            if (state.newItemEssential) {
+                btn.className = "px-3 py-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1 bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-300";
+            } else {
+                btn.className = "px-3 py-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1 bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400";
+            }
+        }
+
+        function toggleItemPacked(id) {
+            const item = state.items.find(i => i.id === id);
+            if (item) {
+                item.packed = !item.packed;
+                saveState();
+                render();
+            }
+        }
+
+        function toggleItemEssential(id) {
+            const item = state.items.find(i => i.id === id);
+            if (item) {
+                item.essential = !item.essential;
+                saveState();
+                render();
+            }
+        }
+
+        function updateQuantity(id, delta) {
+            const item = state.items.find(i => i.id === id);
+            if (item) {
+                item.quantity = Math.max(1, item.quantity + delta);
+                saveState();
+                render();
+            }
+        }
+
+        function deleteItem(id, name) {
+            state.items = state.items.filter(i => i.id !== id);
+            saveState();
+            render();
+            showToast(`Removed "${name}"`);
+        }
+
+        function toggleCategoryPacked(categoryId, packStatus) {
+            state.items.forEach(i => {
+                if (i.category === categoryId) i.packed = packStatus;
+            });
+            saveState();
+            render();
+            showToast(`${packStatus ? 'Packed' : 'Unpacked'} all items in ${categoryId}`);
+        }
+
+        function addPreset(presetKey) {
+            const preset = TRIP_PRESETS[presetKey];
+            if (!preset) return;
+
+            const existingNames = new Set(state.items.map(i => i.name.toLowerCase()));
+            let addedCount = 0;
+
+            preset.items.forEach((p, idx) => {
+                if (!existingNames.has(p.name.toLowerCase())) {
+                    state.items.push({
+                        id: 'preset_' + Date.now() + '_' + idx,
+                        name: p.name,
+                        category: p.category,
+                        quantity: p.quantity,
+                        packed: false,
+                        essential: p.essential
+                    });
+                    addedCount++;
+                }
+            });
+
+            saveState();
+            render();
+            if (addedCount > 0) {
+                showToast(`Added ${addedCount} items from ${preset.label} pack!`);
+            } else {
+                showToast(`All items from ${preset.label} are already in your list!`);
+            }
+        }
+
+        function showModal(title, message, confirmText, confirmCallback, variant = 'amber') {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            confirmBtn.innerText = confirmText;
+            confirmBtn.className = `px-4 py-2 rounded-xl text-sm font-semibold text-white transition ${variant === 'rose' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700'}`;
+            confirmBtn.onclick = () => {
+                confirmCallback();
+                closeModal();
+            };
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        function confirmUncheckAll() {
+            showModal(
+                'Clear All Checkmarks?',
+                'This will mark all packed items as unpacked so you can reuse your checklist for your return trip.',
+                'Uncheck All Items',
+                () => {
+                    state.items.forEach(i => i.packed = false);
+                    saveState();
+                    render();
+                    showToast('All items marked as unpacked');
+                },
+                'amber'
+            );
+        }
+
+        function confirmResetDefault() {
+            showModal(
+                'Reset to Default List?',
+                'This will restore the default vacation checklist and remove any custom items you added.',
+                'Reset Checklist',
+                () => {
+                    state.items = JSON.parse(JSON.stringify(DEFAULT_ITEMS));
+                    saveState();
+                    render();
+                    showToast('Checklist restored to default template');
+                },
+                'rose'
+            );
+        }
+
+        function resetFilters() {
+            state.statusFilter = 'all';
+            state.categoryFilter = 'All';
+            state.searchQuery = '';
+            document.getElementById('search-input').value = '';
+            setStatusFilter('all');
+        }
+
+        function updateTripTitle(val) {
+            state.tripTitle = val;
+            saveState();
+        }
+
+        function toggleDarkMode() {
+            state.darkMode = !state.darkMode;
+            if (state.darkMode) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            updateThemeIcon();
+            saveState();
+        }
+
+        function updateThemeIcon() {
+            const icon = document.getElementById('theme-icon');
+            if (state.darkMode) {
+                icon.setAttribute('data-lucide', 'sun');
+                icon.classList.add('text-amber-300');
+            } else {
+                icon.setAttribute('data-lucide', 'moon');
+                icon.classList.remove('text-amber-300');
+            }
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        function exportChecklist() {
+            const packedCount = state.items.filter(i => i.packed).length;
+            const pct = state.items.length === 0 ? 0 : Math.round((packedCount / state.items.length) * 100);
+            
+            let lines = [`✈️ ${state.tripTitle} - Packing List (${packedCount}/${state.items.length} packed - ${pct}%)`, ''];
+            CATEGORIES.forEach(cat => {
+                const catItems = state.items.filter(i => i.category === cat.id);
+                if (catItems.length > 0) {
+                    lines.push(`=== ${cat.name} ===`);
+                    catItems.forEach(i => {
+                        lines.push(`${i.packed ? '[x]' : '[ ]'} ${i.name} ${i.quantity > 1 ? `(x${i.quantity})` : ''} ${i.essential ? '⭐' : ''}`);
+                    });
+                    lines.push('');
+                }
+            });
+
+            const text = lines.join('\n');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('Packing list copied to clipboard!');
+                }).catch(() => {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast('Packing list copied to clipboard!');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = message;
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
